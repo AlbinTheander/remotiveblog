@@ -1,5 +1,6 @@
 title: RemotiveLabs Engineering Blog
 description: Technical insights and tutorials for automotive software development
+theme: just-the-docs
 
 # Permalink style
 permalink: /:year/:month/:day/:title/
