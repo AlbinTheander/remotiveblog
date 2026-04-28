@@ -7,71 +7,27 @@ categories: [RemotiveTopology, Release]
 
 RemotiveTopology v0.21.2 is now available, bringing two powerful features that streamline your workflow: selective signal decoding and the ability to save generated instance files.
 
-## Selective Signal Decoding
+## Full change log
 
-When working with large CAN frames containing dozens of signals, you often only need a few specific signals for your test or analysis. The new `--only` option lets you decode just the signals you care about.
+**Bug Fixes**
 
-**Before:**
-```bash
-# Decode entire frame with all 20+ signals
-remotive topology decode frame 0x123
-```
+- decoder: Use SOME/IP frame with meta fields in selective decode test (f40f593)
+- Clarified e005 when including wrong file type (5f4233b)
+- Set content type for docker health checks (6a7802a)
+- Optimized how virtual flexray frames are published (9a1cfa4)
+- Flexray initialize signal start values (81c974d)
+- Generated instance file with correct relative paths (b918be3)
 
-**Now:**
-```bash
-# Decode only the signals you need
-remotive topology decode frame 0x123 --only VehicleSpeed,EngineRPM
-```
+**Features**
 
-This makes signal inspection faster and output cleaner, especially when debugging specific issues or monitoring key signals during testing.
+- decoder: Add only option to selectively decode signals from a frame (a5689ef)
+- Save generated instance file (6d6e3d5)
 
-![Selective signal decoding example](../assets/images/selective-decode-example.png)
-*Decode only the signals you need from complex frames*
+**Miscellaneous Tasks**
 
-## Save Generated Instance Files
-
-Previously, `remotive topology generate` would create your instance configuration in memory for immediate use. Now you can save it for reuse and version control:
-
-```bash
-# Generate and save the instance file
-remotive topology generate -f platform.yaml --save-instance lighting.instance.yaml
-
-# Later, reuse the same configuration
-docker compose -f build/lighting/docker-compose.yaml up
-```
-
-This is valuable for:
-- **Version control** - Track instance configurations alongside platform definitions
-- **Collaboration** - Share exact test setups with your team
-- **CI/CD pipelines** - Reuse validated configurations across test runs
-- **Documentation** - Keep a record of working test configurations
-
-## FlexRay Improvements
-
-This release also includes significant FlexRay enhancements:
-- Optimized virtual FlexRay frame publishing for better performance
-- Proper signal start value initialization
-- More reliable FlexRay channel simulation
-
-## Bug Fixes
-
-- Fixed relative path generation in instance files
-- Improved Docker health check reliability
-- Clearer error messages when including incompatible file types
-
-## Upgrade
-
-Update to the latest version:
-
-```bash
-pipx upgrade remotivelabs-cli
-```
-
-Check your version:
-
-```bash
-remotive topology --version
-```
+- topology: Bump default broker version (b21a7cf)
+- Corrected signal ordering (0494c88)
+- Use Encoder.field_value() to represent field with value (6adf418)
 
 ---
 

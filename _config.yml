@@ -7,3 +7,8 @@ permalink: /:year/:month/:day/:title/
 
 # Show excerpts on index page
 show_excerpts: true
+
+callouts:
+  note:
+    title: Note
+    color: blue

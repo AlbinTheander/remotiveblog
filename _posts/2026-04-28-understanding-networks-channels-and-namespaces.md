@@ -1,55 +1,67 @@
 ---
 layout: default
-title: "Understanding Channels and Namespaces in RemotiveTopology"
+title: "Understanding networks, channels and namespaces in RemotiveTopology"
 date: 2026-04-28
 categories: [RemotiveTopology, Tutorial]
 ---
 
-When describing your vehicle architecture in [RemotiveTopology](https://www.remotivelabs.com/products/remotivetopology), two concepts are fundamental: **channels** and **namespaces**. Understanding how these work together is essential for accurately modeling your vehicle platform as code.
-
-This article focuses on defining your topology architecture - the logical structure of ECUs and how they communicate. We won't cover physical network instantiation here; that comes later when you deploy your topology.
+One of the more mysterious concepts when starting to work with [RemotiveTopology](https://www.remotivelabs.com/products/remotivetopology) is namespaces. In this article, we try to
+shed some light over how networks, channels and namespaces relate to each other.
 
 ## Channels: Where ECUs Communicate
 
 A **channel** defines where a group of ECUs communicate with each other. Think of it as a communication bus where multiple ECUs exchange messages. This concept aligns with the "physical channel" in AUTOSAR ARXML terminology.
 
-In RemotiveTopology's platform definition, you describe channels by their type and the ECUs connected to them. The actual physical network details (like which CAN interface to use) are specified later during instantiation.
+It's important to understand that a channel is a logical part of the architecture. It doesn't always correspond to a physical network. For example, several ethernet VLAN channels could use the same physical ethernet network.
 
-### Defining a CAN Channel
+## Namespaces: How ECUs view channels
 
-The simplest channel definition just specifies the type:
+A **namespace** represents how an individual ECU interprets the signals on a channel. It's the ECU's "view" of the communication on that channel.
+
+Think about it this way: multiple ECUs can be connected to the same CAN channel, but each ECU might have its own understanding of what the signals mean. The namespace is defined by the signal database (DBC, ARXML, etc.) that the ECU uses to decode messages.
+
+One ECU can even have multiple namespaces on the same channel. For point-to-point ethernet, each connection to another ECU is its own namespace. The same frame ID could mean different things depending on from which ECU the frame originates.
+
+The word "**namespace**" is used since each namespace guarantees the uniqueness of the signal names and ids.
+
+## Networks: Virtual or physical media to transport data
+
+A **network** is a way of actually transporting data. While channels are logical building blocks to design an architecture, networks are physical entities that are used when the topology is up and running.
+
+RemotiveTopology uses Linux network interfaces to interact with networks. The traffic that is flowing on these interfaces is real. You can use Wireshark or tcpdump to inspect the traffic as you would when working with real hardware.
+
+A RemotiveTopology instance is what connects the logical channel concept to real world network interfaces on your computer.
+
+Lets look at an example.
+
+## Example: DriverCan, a CAN channel
+
+Very often, all or most of the channel information is defined in arxml files. When using other signal database formats, you can add more information in platform files of RemotiveTopology.
+
+Here is a the definition of a channel that is defined in dbc file.
 
 ```yaml
 schema: remotive-topology-platform:0.15
 channels:
   DriverCan0:
     type: can
+    database: ./databases/driver_can.dbc
+    can_physical_channel_name: DriverCan0
 ```
 
-That's it! RemotiveTopology now knows there's a CAN channel called `DriverCan0` where ECUs can communicate.
+We need to add the `can_physical_channel_name` property, that would have been specified in an arxml file, since the dbc format doesn't include the name of the channel.
 
-You can add optional details if needed for configuration or clarity:
+You can add optional details if needed:
 
 ```yaml
 channels:
   DriverCan0:
     type: can
+    database: ./databases/driver_can.dbc
+    can_physical_channel_name: DriverCan0
     baudrate: 500000
     baudrate_fd: 2000000
     brs: true  # Bit rate switching for CAN FD
-```
-
-### Adding ECUs from DBC Files
-
-DBC files describe CAN signals and ECUs, but they don't include the channel name. You specify which channel should use the DBC using the `database` field:
-
-```yaml
-schema: remotive-topology-platform:0.15
-channels:
-  DriverCan0:
-    type: can
-    database: ../databases/driver_can.dbc
-    can_physical_channel_name: DriverCan0
 ```
 
 RemotiveTopology automatically extracts the ECUs from the DBC and connects them to this channel. For example, if `driver_can.dbc` contains ECUs named BCM and SCCM, the resulting platform looks like:
@@ -72,301 +84,57 @@ ecus:
         database: ../databases/driver_can.dbc
 ```
 
-### Other Channel Types
+(In reality, there is more information in a platform. To see all properties, you can use the RemotiveCLI tool and run `remotive topology show platform <file.platform.yaml>`.
 
-RemotiveTopology supports various automotive protocols:
 
-**LIN channels** require an LDF (LIN Description File):
+{: .note}
+> When you write the platform files, you don't need to specify information that is automatically extracted. The above example is equivalent to
+> ```yaml
+> schema: remotive-topology-platform:0.15
+> channels:
+>   DriverCan0:
+>     type: can
+>     can_physical_channel_name: DriverCan0
+>     database: ../databases/driver_can.dbc
+> ```
+> or, if you have an arxml that contains all the information, it could be suffice with
+> ```yaml
+> schema: remotive-topology-platform:0.15
+> include:
+>   ./databases/driver_can.arxml
+> ```
+
+Finally, we need an instance when executing this instance. The instance describes how `DriverCan0`is connected to a network interface on your computer. In our case, we have a physical CAN interface that is connected to the `lin5` socketCAN network interface. We will use the `remotivebus` driver to communicate with `lin5`.
 
 ```yaml
+schema: remotive-topology-instance:0.15
+platform:
+  include: ./driver_can.platform.yaml
+
 channels:
-  RearLightLin:
-    type: lin
-    database: ../databases/rear_light.ldf
-    baudrate: 19200
+  DriverCan0:
+    type: can
+    driver:
+      type: remotivebus
+      config:
+        type: can
+        device: myvlin
+        host_device: lin5
 ```
 
-**Ethernet channels** need subnet information:
+### Example: Using namespace to interact with a channel
 
-```yaml
-channels:
-  VehicleEthernet:
-    type: ethernet
-    subnet: 10.1.0.0/24
-    vlan: 2  # optional
-```
+Namespaces are used by code to interact with a channel as an ECU. This can be from a behavioral model for that ECU or for a test case where you want to read data from a channel as an ECU.
 
-## Connecting ECUs to Channels
+Namespaces get names from the ECU and the channel. In the example above, there would be two namespaces: `BCM-DriverCan0` and `SCCM-DriverCan0`.
 
-To connect an ECU to a channel, you simply specify that the channel exists for that ECU:
-
-```yaml
-ecus:
-  BCM:
-    channels:
-      DriverCan0: {}
-```
-
-For Ethernet channels, you must also specify the ECU's IP address:
-
-```yaml
-ecus:
-  BCM:
-    channels:
-      VehicleEthernet:
-        config:
-          type: ethernet
-          host: 10.1.0.50
-```
-
-## Namespaces: How ECUs View Channels
-
-Here's where it gets interesting. A **namespace** represents how an individual ECU interprets the signals on a channel. It's the ECU's "view" of the communication on that channel.
-
-Think about it this way: multiple ECUs can be connected to the same CAN channel, but each ECU might have its own understanding of what the signals mean. The namespace is defined by the signal database (DBC, ARXML, etc.) that the ECU uses to decode messages.
-
-### Why "Namespace"?
-
-The term comes from programming, where namespaces prevent naming conflicts. In RemotiveTopology, a namespace ensures that when you refer to a signal like `TurnStalk.TurnSignal`, there's no ambiguity about which ECU's interpretation you mean.
-
-A namespace is typically formatted as `<ECU>-<Channel>`, like `SCCM-DriverCan0` or `BCM-BodyCan0`.
-
-### Namespaces in Platform Definition
-
-When you specify a database for an ECU's channel connection, you're defining that ECU's namespace:
-
-```yaml
-ecus:
-  BCM:
-    channels:
-      DriverCan0:
-        database: ../databases/driver_can.dbc
-  SCCM:
-    channels:
-      DriverCan0:
-        database: ../databases/driver_can.dbc
-```
-
-Each ECU gets its own namespace based on the database it uses to interpret signals on `DriverCan0`. The resulting namespaces would be `BCM-DriverCan0` and `SCCM-DriverCan0`.
-
-### Using Namespaces in Code
-
-When you interact with signals using the RemotiveTopology framework, you reference them through their namespace:
+These can be used to read or write data:
 
 ```python
-# Update signals in the SCCM namespace
-await client.restbus.update_signals(
-    (
-        "SCCM-DriverCan0",  # namespace
-        [
-            RestbusSignalConfig.set(
-                name="TurnStalk.TurnSignal", 
-                value="LEFT"
-            ),
-        ],
-    )
-)
-
 # Subscribe to signals in the BCM namespace  
 sub = await broker_client.subscribe(
     (
-        "BCM-BodyCan0",  # namespace
-        [
-            "TurnLightControl.LeftTurnLightRequest",
-            "TurnLightControl.RightTurnLightRequest"
-        ]
-    )
-)
-```
-
-### Overriding Namespace Databases
-
-Sometimes you want to give an ECU only a partial view of a channel. You can override the database for a specific ECU's channel connection:
-
-```yaml
-channels:
-  DriverCan0:
-    type: can
-    database: ../databases/driver_can.dbc  # Full channel view
-
-ecus:
-  TestECU:
-    channels:
-      DriverCan0:
-        database: ../databases/limited_view.dbc  # Partial view
-```
-
-This is useful when testing ECUs that should only see a subset of the signals on a channel.
-
-## Building Modular Platforms
-
-One of RemotiveTopology's strengths is modularity. You can combine multiple platform files to build complex topologies from smaller subsystems:
-
-```yaml
-schema: remotive-topology-platform:0.15
-includes:
-  - ./lighting.platform.yaml
-  - ./climate.platform.yaml
-  - ./driver.platform.yaml
-```
-
-This is especially powerful when different teams work on different subsystems. Each team maintains their own platform definition, and you combine them to create the complete vehicle topology.
-
-### Using ARXML
-
-If you have ARXML files (ECU extracts or system descriptions), simply include them:
-
-```yaml
-schema: remotive-topology-platform:0.15
-includes:
-  - ../databases/body_control.arxml
-  - ../databases/steering_control.arxml
-```
-
-ARXML contains channels, ECUs, and their connections - RemotiveTopology extracts all the necessary information automatically.
-
-## Putting It All Together
-
-Let's visualize how channels and namespaces work together:
-
-```
-┌─────────────────────────────────────────────────┐
-│ Channel: DriverCan0                             │
-│ Type: CAN                                       │
-│ Database: driver_can.dbc                        │
-└─────────────────────────────────────────────────┘
-                    │
-          ┌─────────┴─────────┐
-          ▼                   ▼
-┌──────────────────┐  ┌──────────────────┐
-│ Namespace        │  │ Namespace        │
-│ SCCM-DriverCan0  │  │ BCM-DriverCan0   │
-│                  │  │                  │
-│ Signals:         │  │ Signals:         │
-│ - TurnStalk.*    │  │ - VehicleSpeed   │
-│ - WiperControl   │  │ - BrakeStatus    │
-└──────────────────┘  └──────────────────┘
-```
-
-Each ECU connected to `DriverCan0` has its own namespace, allowing it to have its own interpretation of the signals on that channel.
-
-## Why These Concepts Matter
-
-Understanding channels and namespaces is crucial for several reasons:
-
-### 1. Accurate Architecture Definition
-
-When describing your vehicle platform, you define the logical structure - which ECUs communicate on which channels. This is independent of how you'll physically instantiate it later.
-
-### 2. Flexibility in Testing
-
-The same platform definition works whether you're:
-- Running entirely virtually on your laptop
-- Connecting to physical CAN interfaces
-- Mixing virtual and hardware ECUs
-- Running in CI/CD pipelines
-
-The physical network mapping happens during instantiation, not in the platform definition.
-
-### 3. ECU Isolation and Testing
-
-By using namespaces, you can:
-- Mock specific ECUs and control their signals
-- Subscribe to signals from different ECUs separately
-- Give test ECUs limited views of channels
-- Test ECU interactions without ambiguity
-
-### 4. Team Collaboration
-
-Modular platform files let different teams work independently:
-- The steering team maintains `steering.platform.yaml`
-- The lighting team maintains `lighting.platform.yaml`  
-- Integration testing combines all subsystems
-- Changes to one subsystem don't break others
-
-## Complete Example: Turn Signal System
-
-Here's a complete platform definition for a turn signal system spanning two channels:
-
-```yaml
-schema: remotive-topology-platform:0.15
-
-# Define the channels
-channels:
-  DriverCan0:
-    type: can
-    database: ../databases/driver_can.dbc
-    can_physical_channel_name: DriverCan0
-  
-  BodyCan0:
-    type: can
-    database: ../databases/body_can.dbc
-    can_physical_channel_name: BodyCan0
-
-# Define the ECUs
-ecus:
-  # Steering Column Control Module - detects turn stalk position
-  SCCM:
-    channels:
-      DriverCan0:
-        database: ../databases/driver_can.dbc
-  
-  # Body Control Module - acts as gateway between channels
-  BCM:
-    channels:
-      DriverCan0:
-        database: ../databases/driver_can.dbc
-      BodyCan0:
-        database: ../databases/body_can.dbc
-  
-  # Front Light Control Module - controls turn lights
-  FLCM:
-    channels:
-      BodyCan0:
-        database: ../databases/body_can.dbc
-  
-  # Rear Light Control Module - controls turn lights  
-  RLCM:
-    channels:
-      BodyCan0:
-        database: ../databases/body_can.dbc
-```
-
-### What This Defines
-
-**Channels:**
-- `DriverCan0`: Communication between steering and body control
-- `BodyCan0`: Communication between body control and lighting
-
-**ECUs:**
-- `SCCM`: Connected to DriverCan0, namespace `SCCM-DriverCan0`
-- `BCM`: Connected to both channels, namespaces `BCM-DriverCan0` and `BCM-BodyCan0`
-- `FLCM`: Connected to BodyCan0, namespace `FLCM-BodyCan0`
-- `RLCM`: Connected to BodyCan0, namespace `RLCM-BodyCan0`
-
-### Testing with This Platform
-
-With this platform defined, you can write tests like:
-
-```python
-# Set turn stalk to LEFT in SCCM namespace
-await client.restbus.update_signals(
-    (
-        "SCCM-DriverCan0",
-        [
-            RestbusSignalConfig.set(
-                name="TurnStalk.TurnSignal", 
-                value="LEFT"
-            ),
-        ],
-    )
-)
-
-# Verify BCM received and forwarded the signal
-# Subscribe to FLCM namespace to check light control
-sub = await broker_client.subscribe(
-    (
-        "FLCM-BodyCan0",
+        "BCM-DriverCan0",  # namespace
         [
             "TurnLightControl.LeftTurnLightRequest",
             "TurnLightControl.RightTurnLightRequest"
@@ -374,39 +142,12 @@ sub = await broker_client.subscribe(
     )
 )
 
-# Wait for expected values
-await await_at_most(seconds=2).until(
-    partial(take_values, sub),
-    equal_to({
-        "TurnLightControl.LeftTurnLightRequest": 1,
-        "TurnLightControl.RightTurnLightRequest": 0
-    }),
+# Publish data to the SCCM namespace
+await broker_client.publish(
+    "SCCM-DriverCan0",
+    WriteSignal("TurnLightControl.LeftTurnLightRequest", 1)
 )
 ```
-
-This test verifies the complete signal flow: SCCM → BCM (gateway) → FLCM, using namespaces to interact with each ECU's view of the channels.
-
-## Viewing Your Platform
-
-Use the RemotiveTopology CLI to inspect your platform definition:
-
-```bash
-$ remotive topology show platform lighting.platform.yaml
-```
-
-This displays all channels and ECUs, helping you verify your topology structure before instantiation.
-
-## What's Next: Instantiation
-
-The platform definition we've discussed describes the **architecture** of your vehicle topology - which ECUs exist and how they communicate logically. 
-
-The next step is **instantiation** - actually running this topology. This is where you specify:
-- Whether ECUs are mocks, behavioral models, or real hardware
-- How to map channels to physical network interfaces
-- Configuration for running in Docker containers
-- Connection to CAN/LIN/Ethernet adapters
-
-Instantiation is covered in a separate configuration (the instance file), keeping the architecture definition clean and reusable across different test environments.
 
 ## Conclusion
 
@@ -414,18 +155,19 @@ When defining your vehicle platform in RemotiveTopology:
 
 - **Channels** define where ECUs communicate (the logical communication buses)
 - **Namespaces** define how each ECU interprets signals on those channels (based on their signal databases)
+- **Networks** are real world entities that can transport data. When realizing logical channels, they get connected to networks.
 
-This separation creates a flexible, modular architecture that works whether you're testing virtually on a laptop, in a CI/CD pipeline, or connected to real hardware. The platform definition stays the same - only the instantiation changes.
 
 ### Key Takeaways
 
 1. Channels are logical groupings, not physical networks
 2. ECUs connect to channels to communicate
 3. Each ECU's namespace defines its view of a channel's signals
-4. Platform files can be combined for modular development
-5. Physical network details come later, during instantiation
+4. Platform files define channels and ecus in an architecture
+5. Physical networks are used to implement channels when realizing the platform
+6. An instance file describes how channels are implemented as networks.
 
-By mastering channels and namespaces, you can describe complex vehicle architectures as infrastructure-as-code, enabling early integration testing and seamless transitions from virtual to physical testing environments.
+By mastering channels and namespaces, you can describe complex vehicle architectures as infrastructure-as-code and mastering instances allows you to realize the channels with real life networks.
 
 ---
 
