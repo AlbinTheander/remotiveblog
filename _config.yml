@@ -1,3 +1,8 @@
-remote_theme: pages-themes/architect@v0.2.0
-plugins:
-    - jekyll-remote-theme
+title: RemotiveLabs Engineering Blog
+description: Technical insights and tutorials for automotive software development
+
+# Permalink style
+permalink: /:year/:month/:day/:title/
+
+# Show excerpts on index page
+show_excerpts: true
