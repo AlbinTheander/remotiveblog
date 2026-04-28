@@ -16,7 +16,7 @@ Blog posts are located in `_posts/` following Jekyll's naming convention: `YYYY-
 
 ## Running Locally
 
-This blog uses Jekyll with the default Minima theme.
+This blog uses the [Just the Docs](https://just-the-docs.github.io/just-the-docs/) theme via Jekyll remote theme (GitHub Pages compatible).
 
 ### Prerequisites
 
