@@ -1,6 +1,8 @@
 title: RemotiveLabs Engineering Blog
 description: Technical insights and tutorials for automotive software development
 remote_theme: just-the-docs/just-the-docs
+baseurl: "/remotiveblog" # GitHub Pages project site
+url: "https://albintheander.github.io"
 
 plugins:
   - jekyll-remote-theme
