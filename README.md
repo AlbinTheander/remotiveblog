@@ -2,6 +2,8 @@
 
 This is a demo Jekyll blog repository showcasing what an engineering blog for RemotiveLabs could look like. It contains technical content about RemotiveLabs products, particularly RemotiveTopology.
 
+The site can be found at [https://albintheander.github.io/remotiveblog/](https://albintheander.github.io/remotiveblog/)
+
 ## Purpose
 
 Create example technical blog posts demonstrating:
