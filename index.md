@@ -1,6 +1,7 @@
 ---
 layout: default
-title: RemotiveLabs Engineering Blog
+title: Home
+nav_order: 1
 ---
 
 # RemotiveLabs Engineering Blog

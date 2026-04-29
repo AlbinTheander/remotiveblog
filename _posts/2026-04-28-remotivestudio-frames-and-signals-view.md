@@ -1,8 +1,9 @@
 ---
 layout: default
-title: "New in RemotiveStudio: Explore Frames and Signals in Tree View"
+title: "Explore Frames and Signals in Tree View"
 date: 2026-04-28
 categories: [RemotiveStudio, Features]
+parent: RemotiveStudio
 ---
 
 RemotiveStudio's Tree view lets you explore RemotiveTopology platforms and instances. It also allows you to show all frames and signals in that platform. Now, these concepts are married together to include signal data directly in your topology tree view.

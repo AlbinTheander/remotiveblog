@@ -1,8 +1,9 @@
 ---
 layout: default
-title: "Understanding networks, channels and namespaces in RemotiveTopology"
+title: "Understanding networks, channels and namespaces"
 date: 2026-04-28
 categories: [RemotiveTopology, Tutorial]
+parent: RemotiveTopology
 ---
 
 One of the more mysterious concepts when starting to work with [RemotiveTopology](https://www.remotivelabs.com/products/remotivetopology) is namespaces. In this article, we try to

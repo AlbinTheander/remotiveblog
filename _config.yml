@@ -13,6 +13,10 @@ permalink: /:year/:month/:day/:title/
 # Show excerpts on index page
 show_excerpts: true
 
+# Just the Docs settings
+search_enabled: true
+heading_anchors: true
+
 callouts:
   note:
     title: Note

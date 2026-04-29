@@ -1,13 +1,19 @@
 ---
 layout: default
-title: "RemotiveTopology v0.21.2: Selective Signal Decoding and Instance Generation"
+title: "RemotiveTopology v0.21.2: Selective Signal Decoding"
 date: 2026-03-26
 categories: [RemotiveTopology, Release]
+parent: RemotiveTopology
 ---
 
 RemotiveTopology v0.21.2 is now available, bringing two powerful features that streamline your workflow: selective signal decoding and the ability to save generated instance files.
 
 ## Full change log
+
+**Features**
+
+- decoder: Add only option to selectively decode signals from a frame (a5689ef)
+- Save generated instance file (6d6e3d5)
 
 **Bug Fixes**
 
@@ -17,11 +23,6 @@ RemotiveTopology v0.21.2 is now available, bringing two powerful features that s
 - Optimized how virtual flexray frames are published (9a1cfa4)
 - Flexray initialize signal start values (81c974d)
 - Generated instance file with correct relative paths (b918be3)
-
-**Features**
-
-- decoder: Add only option to selectively decode signals from a frame (a5689ef)
-- Save generated instance file (6d6e3d5)
 
 **Miscellaneous Tasks**
 
